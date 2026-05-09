@@ -1,0 +1,25 @@
+{
+  "name": "reign-of-grelok-ts",
+  "version": "1.0.0",
+  "description": "This is a small adventure game written in Typescript. It is a rewrite of [Fallout 3 Easter Egg](http://fallout.wikia.com/wiki/Reign_of_Grelok). You play as Grognak, a mighty barbarian, and your goal is to put an end to the terrible reign of Grelok, an evil wizard.",
+  "homepage": "https://github.com/lstejskal/reign-of-grelok-ts#readme",
+  "bugs": {
+    "url": "https://github.com/lstejskal/reign-of-grelok-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lstejskal/reign-of-grelok-ts.git"
+  },
+  "license": "ISC",
+  "author": "Lukas Stejskal",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsc-watch --onSuccess \"node dist/index.js\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "tsc-watch": "^7.2.0",
+    "typescript": "^6.0.3"
+  }
+}
