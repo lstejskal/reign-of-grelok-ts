@@ -1,8 +1,10 @@
 # Reign of Grelok
 
-This is a small adventure game written in Ruby. It is a Ruby rewrite of [Fallout 3 Easter Egg](http://fallout.wikia.com/wiki/Reign_of_Grelok). You play as Grognak, a mighty barbarian, and your goal is to put an end to the terrible reign of Grelok, an evil wizard.
+This is a small adventure game written in Typescript. It is a rewrite of [Fallout 3 Easter Egg](http://fallout.wikia.com/wiki/Reign_of_Grelok). You play as Grognak, a mighty barbarian, and your goal is to put an end to the terrible reign of Grelok, an evil wizard.
 
-It is best to run the game in ruby: `ruby grelok.exe` But if you are under Windows and don't have Ruby, you can use the all-in-one executable: `reign_of_grelok.exe`
+### How to run
+
+`npm run start`
 
 ### Commands
 
@@ -26,4 +28,4 @@ It is best to run the game in ruby: `ruby grelok.exe` But if you are under Windo
 
 Original mini-game: Copyright (c) 2008 Bethesda Game Studios, [Fallout 3 developers](http://fallout.wikia.com/wiki/Fallout_3_developers)
 
-Ruby rewrite: Copyright (c) 2009-2013 Lukas Stejskal
+Typescript rewrite: Copyright (c) 2026 Lukas Stejskal
