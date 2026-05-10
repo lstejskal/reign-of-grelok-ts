@@ -11,7 +11,7 @@ const DEFAULT_PARS: SentenceParams  = {
     join: ', ',
     joinLast: ' and ',
     prepend: '',
-    append: '.',
+    append: '',
     onEmpty: 'nothing'
 };
     
@@ -30,7 +30,7 @@ export function toSentence(
                 sentence = arr[0];
                 break;
             case 2:
-                sentence =  arr.join(pars.join);
+                sentence =  arr.join(pars.joinLast);
                 break;
             default:
                 const lastItem = arr.pop();
