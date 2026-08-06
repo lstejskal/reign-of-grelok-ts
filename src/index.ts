@@ -1,6 +1,5 @@
 
-import { toSentence } from './utils/toSentence.js'; 
-import { chopToLines } from './utils/chopToLines.js'; 
+import { toSentence, chopToLines } from './utils.js';
 
 const version: string = '1.0.0';
 
