@@ -5,8 +5,6 @@ require 'readline'
 # system "ruby ./wrap_yaml_files.rb"
 require_relative 'game_data'
 
-require_relative 'core_extensions'
-
 # don't exit when you get an interrupt signal (Crtl+C)
 trap('INT', 'SIG_IGN')
 
