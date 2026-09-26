@@ -16,6 +16,15 @@ const config: Config = {
 
   moduleFileExtensions: ['ts', 'js', 'json'],
 
+  // Source files use Node-ESM-style relative imports with an explicit
+  // `.js` extension (e.g. `./Thing.js`) even though the file on disk is
+  // `.ts` — correct for how `tsc`/Node resolve it at runtime, but ts-jest
+  // resolves modules as CommonJS and can't find a same-named `.js` file.
+  // Strip the extension so Jest resolves back to the `.ts` source.
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+
   clearMocks: true,
 };
 
