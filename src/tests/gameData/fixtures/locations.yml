@@ -1,0 +1,6 @@
+plain:
+  alias: plain
+  name: Plain
+  description: A wide plain.
+  directions:
+    n: mountain

@@ -1,0 +1,24 @@
+rusty_sword:
+  alias: rusty_sword
+  description: your trusty rusty sword
+  location: i
+  pickable: true
+
+gemstone:
+  alias: gemstone
+  description: beautiful gemstone
+  location: mountain
+  visible: false
+  pickable: true
+
+standing_stone:
+  alias: standing_stone
+  description: a huge menhir
+  location: plain
+  pickable: false
+
+jug:
+  alias: jug
+  description: an empty clay jug
+  location:
+  pickable: true

@@ -1,0 +1,3 @@
+give_gemstone_to_wizard:
+- remove gemstone
+- visible gemstone_shards

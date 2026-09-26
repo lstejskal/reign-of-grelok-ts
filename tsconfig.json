@@ -3,7 +3,7 @@
         "target": "ES2020",
          "outDir": "./dist",
         "rootDir": "./src",
-        "types": ["jest"],
+        "types": ["jest", "node"],
         "esModuleInterop": true,
    },
     "include": ["src/**/*"],
