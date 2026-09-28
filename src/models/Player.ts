@@ -29,6 +29,9 @@ export class Player {
     previousLocation: string | undefined;
     activeObjects: string[];
 
+    // toggled by `extended prompt on|off`, off by default
+    extendedPrompt: boolean;
+
     private readonly output: (text: string) => void;
     private readonly customActionRunner: CustomActionRunner;
 
@@ -49,6 +52,7 @@ export class Player {
         this.currentLocation = 'plain';
         this.previousLocation = undefined;
         this.activeObjects = [];
+        this.extendedPrompt = false;
 
         this.customActionRunner = new CustomActionRunner(
             this.game,
@@ -75,6 +79,17 @@ export class Player {
         return this.game.locations[this.currentLocation];
     }
 
+    // Doc §4: "\n[plain: n, s, e, w] > " when extended, else "\n> ".
+    // Recomputed on every call so it always reflects the current location.
+    get promptText(): string {
+        if (!this.extendedPrompt) {
+            return '\n> ';
+        }
+
+        const directionLetters = Object.keys(this.location.directions).join(', ');
+        return `\n[${this.location.name.toLowerCase()}: ${directionLetters}] > `;
+    }
+
     // --- command line processing ---------------------------------------
 
     // Doc §5, `process_line`, steps 4-15: tokenize, resolve against custom
@@ -84,6 +99,21 @@ export class Player {
     processLine(line: string): ProcessLineResult {
         const trimmedLine = line.trim();
         if (trimmedLine === '') {
+            return { gameOver: false };
+        }
+
+        const extendedPromptMatch = trimmedLine.match(/^extended prompt (\w+)$/);
+        if (extendedPromptMatch) {
+            const arg = extendedPromptMatch[1].toLowerCase();
+            if (arg === 'on') {
+                this.extendedPrompt = true;
+                this.say('extended prompt activated');
+            } else if (arg === 'off') {
+                this.extendedPrompt = false;
+                this.say('extended prompt deactivated');
+            } else {
+                this.say('extended prompt: invalid parameter');
+            }
             return { gameOver: false };
         }
 

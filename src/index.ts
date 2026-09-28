@@ -17,14 +17,18 @@ async function main(): Promise<void> {
     const readline = createInterface({ input, output, prompt: '> ' });
 
     player.lookAround();
+    readline.setPrompt(player.promptText);
     readline.prompt();
 
     for await (const line of readline) {
         const { gameOver } = player.processLine(line);
 
-        if (gameOver) { break; }
+        if (gameOver) {
+            break;
+        }
 
         player.lookAround();
+        readline.setPrompt(player.promptText);
         readline.prompt();
     }
 

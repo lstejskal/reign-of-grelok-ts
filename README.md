@@ -4,7 +4,7 @@ This is a small adventure game written in Typescript. It is a rewrite of [Fallou
 
 ### How to run
 
-`npm run start`
+`npm run play`
 
 ### Commands
 
@@ -20,6 +20,7 @@ This is a small adventure game written in Typescript. It is a rewrite of [Fallou
 
 ### System commands
 
+* extended prompt on/off
 * save [name]
 * load [name]
 * quit

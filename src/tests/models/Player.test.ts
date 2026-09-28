@@ -374,4 +374,44 @@ describe('Player', () => {
             expect(output[output.length - 1]).toBe('Farewell!');
         });
     });
+    describe('promptText', () => {
+        test('defaults to the plain prompt', () => {
+            const { player } = buildPlayer();
+            expect(player.extendedPrompt).toBe(false);
+            expect(player.promptText).toBe('\n> ');
+        });
+
+        test('enables extended prompt', () => {
+            const { player } = buildPlayer();
+            player.extendedPrompt = true;
+            expect(player.promptText).toBe('\n[plain: n, s] > ');
+        });
+    });
+
+    describe('processLine: "extended prompt on|off"', () => {
+        test('"extended prompt off" disables it and confirms', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('extended prompt off');
+            expect(result).toEqual({ gameOver: false });
+            expect(player.extendedPrompt).toBe(false);
+            expect(output[output.length - 1]).toBe('extended prompt deactivated');
+        });
+
+        test('"extended prompt on" re-enables it and confirms', () => {
+            const { player, output } = buildPlayer();
+            player.extendedPrompt = false;
+            const result = player.processLine('extended prompt on');
+            expect(result).toEqual({ gameOver: false });
+            expect(player.extendedPrompt).toBe(true);
+            expect(output[output.length - 1]).toBe('extended prompt activated');
+        });
+
+        test('an unrecognized argument leaves the switch untouched', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('extended prompt sideways');
+            expect(result).toEqual({ gameOver: false });
+            expect(player.extendedPrompt).toBe(false);
+            expect(output[output.length - 1]).toBe('extended prompt: invalid parameter');
+        });
+    });
 });

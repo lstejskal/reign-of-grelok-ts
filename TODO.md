@@ -2,11 +2,9 @@
 
 * help
 
-* extended prompt (including switch?)
+* command history (in-memory)
 
-* command history (in-memory) and autocompletion
-
-* save and load game
+* save/load game
 
 # FIXME 1.1
 
