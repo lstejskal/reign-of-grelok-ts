@@ -4,7 +4,7 @@ import { stdin as input, stdout as output } from 'node:process';
 
 import { toSentence, chopToLines } from './utils.js';
 import { loadGameData } from './gameData/loadGameData.js';
-import { Game } from './models/Game.js';
+import { Player } from './models/Player.js';
 
 const version: string = '0.0.1';
 
@@ -13,7 +13,7 @@ const QUIT_COMMANDS = new Set(['quit', 'exit']);
 async function main(): Promise<void> {
     // load game data before the main loop
     const gameData = loadGameData();
-    const game = new Game(gameData);
+    const player = new Player(gameData);
 
     console.log('REIGN OF GRELOK', `v${version}`);
 
@@ -40,8 +40,7 @@ async function main(): Promise<void> {
             break;
         }
 
-        // TODO: parse the command against gameData.commands and act on
-        // game.locations / game.things (Player hasn't been ported yet)
+        // TODO: parse the command line into a verb + params
 
         console.log(`You said: "${line.trim()}"`);
 

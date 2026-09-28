@@ -1,0 +1,241 @@
+
+import { Game } from './Game.js';
+import { Location } from './Location.js';
+import { Message } from './Message.js';
+import { Thing } from './Thing.js';
+import { chopToLines, toSentence } from '../utils.js';
+import type { ConstraintsData, GameData } from '../gameData/types.js';
+
+/**
+ * Player holds game state: current location, inventory, constraints...) 
+ * and manages it through command handlers.
+ *
+ * NOT ported yet, deliberately: `process_line`'s parser (tokenizing a raw
+ * command line into a verb + params) and the custom-action scripting DSL
+ * (§6 of the doc) — both are their own sizeable pieces the doc already
+ * calls out as separate porting steps. So are save/load, autocompletion
+ * shortcuts, and the extended/custom prompt switch, per this round's
+ * scope. Until the parser exists, callers invoke these handlers directly
+ * (e.g. `player.go('n')`, `player.pickUp('rusty_sword')`).
+ */
+export class Player {
+    game: Game;
+    messages: Message;
+    constraints: ConstraintsData;
+
+    currentLocation: string;
+    previousLocation: string | undefined;
+    activeObjects: string[];
+
+    private readonly output: (text: string) => void;
+
+    constructor(gameData: GameData, output: (text: string) => void = console.log) {
+        this.output = output;
+        this.game = new Game(gameData);
+
+        // PS: upon new game and game load, start with fresh slate
+        this.messages = new Message(structuredClone(gameData.messages));
+        this.constraints = structuredClone(gameData.constraints);
+
+        this.currentLocation = 'plain';
+        this.previousLocation = undefined;
+        this.activeObjects = [];
+    }
+
+    get location(): Location {
+        return this.game.locations[this.currentLocation];
+    }
+
+    // --- output -------------------------------------------------------
+
+    say(text: string): void {
+        this.output(chopToLines(text));
+    }
+
+    sayGibberish(): void {
+        const gibberishCount = 3;
+        const index = Math.floor(Math.random() * gibberishCount) + 1;
+        const message = this.messages.findByAlias(`gibberish${index}`);
+        if (message !== undefined) {
+            this.say(message);
+        }
+    }
+
+    // --- world state ----------------------------------------------------
+
+    inventory(): string[] {
+        return Object.values(this.game.things)
+            .filter((thing) => thing.location === 'i')
+            .map((thing) => thing.alias);
+    }
+
+    // Names of visible things in a location
+    thingsInLocationBare(locationAlias: string = this.currentLocation): string[] {
+        return Object.values(this.game.things)
+            .filter((thing) => thing.inLocation(locationAlias) && thing.visible)
+            .map((thing) => thing.name);
+    }
+
+    // Names of visible things in a location formatted into sentence
+    thingsInLocation(locationAlias: string = this.currentLocation): string {
+        const prepend = locationAlias === 'i' ? 'You carry ' : 'There is ';
+        return toSentence(this.thingsInLocationBare(locationAlias), { prepend });
+    }
+
+    isActiveObject(thingAlias: string): boolean {
+        return this.activeObjects.includes(Thing.aliasToName(thingAlias));
+    }
+
+    lookAround(): void {
+        if (this.currentLocation !== this.previousLocation) {
+            this.output('');
+            this.say(`${this.location.name}\n\n`);
+            this.say(`${this.location.description}\n\n`);
+            this.say(`${this.location.formattedDirections()}\n`);
+            this.say(`${this.thingsInLocation()}\n`);
+            this.previousLocation = this.currentLocation;
+        }
+
+        this.activeObjects = [
+            ...this.inventory().map((alias) => Thing.aliasToName(alias)),
+            ...this.thingsInLocationBare(this.currentLocation),
+        ];
+    }
+
+    // --- command handlers -------------------------------------------------
+
+    canLookAt(thingAlias: string): boolean {
+        const thing = this.game.things[thingAlias];
+        return (
+            thing !== undefined &&
+            (thing.location === this.currentLocation || thing.location === 'i') &&
+            thing.visible === true
+        );
+    }
+
+    lookAt(thingAlias: string = ''): void {
+        if (thingAlias === '') {
+            this.previousLocation = undefined;
+            return;
+        }
+
+        const thingName = Thing.aliasToName(thingAlias);
+        this.say(
+            this.canLookAt(thingAlias)
+                ? `It's ${this.game.things[thingAlias].description}.`
+                : `You can't see any ${thingName} here.`,
+        );
+    }
+
+    canPickUp(thingAlias: string): boolean {
+        const thing = this.game.things[thingAlias];
+        return (
+            thing !== undefined &&
+            thing.visible &&
+            thing.pickable &&
+            thing.location === this.currentLocation
+        );
+    }
+
+    pickUp(thingAlias: string = ''): void {
+        const thingName = Thing.aliasToName(thingAlias);
+
+        if (this.canPickUp(thingAlias)) {
+            this.game.things[thingAlias].location = 'i';
+            this.say(`You picked up ${thingName}.`);
+        } else if (this.inventory().includes(thingAlias)) {
+            this.say(`You already carry ${thingName}.`);
+        } else if (thingName !== '') {
+            this.say(`You can't pick up ${thingName}.`);
+        } else {
+            this.say('Pick up what?');
+        }
+    }
+
+    drop(thingAlias: string = ''): void {
+        const thingName = Thing.aliasToName(thingAlias);
+
+        if (this.inventory().includes(thingAlias)) {
+            this.game.things[thingAlias].location = this.currentLocation;
+            this.say(`You dropped ${thingName}.`);
+        } else if (thingName !== '') {
+            this.say(`You don't carry ${thingName}.`);
+        } else {
+            this.say('Drop what?');
+        }
+    }
+
+    canGo(direction: string): boolean {
+        return (
+            direction in this.location.directions &&
+            !this.constraints.locations[`${this.currentLocation}-${direction}`]
+        );
+    }
+
+    go(direction: string): void {
+        const dir = direction.charAt(0);
+
+        if (this.canGo(dir)) {
+            this.currentLocation = this.location.directions[dir];
+        } else {
+            const blockedMessage = this.constraints.locations[`${this.currentLocation}-${dir}`];
+            this.say(blockedMessage || "You can't go that way.");
+        }
+    }
+
+    // talkTo/ask/give/use are fallbacks only: real dialogue and puzzle
+    // logic live in messages.yml / custom_actions.yml  and get a first shot 
+    // at the command before these run
+    talkTo(whom: string = ''): void {
+        if (this.isActiveObject(whom)) {
+            this.say("You can't chat with that.");
+        } else {
+            this.say(`Talk to whom? I don't see any ${Thing.aliasToName(whom)} around here.`);
+        }
+    }
+
+    ask(whom: string = ''): void {
+        if (this.isActiveObject(whom)) {
+            const message = this.messages.findByAlias(`ask_${whom}_about_anything`);
+            this.say(message ?? "You can't chat with that.");
+        } else {
+            this.say(`Ask whom? I don't see any ${Thing.aliasToName(whom)} around here.`);
+        }
+    }
+
+    give(what: string = '', whom: string = ''): void {
+        if (what === '') {
+            this.sayGibberish();
+        } else if (!this.inventory().includes(what)) {
+            this.say(`You don't have ${Thing.aliasToName(what)}.`);
+        } else if (whom === '') {
+            this.say('Give to whom?');
+        } else if (!this.isActiveObject(whom)) {
+            this.say(`Give to whom? I don't see any ${Thing.aliasToName(whom)} around here.`);
+        } else {
+            const message = this.messages.findByAlias(`give_anything_to_${whom}`);
+            this.say(message ?? 'That doesn\'t make sense.');
+        }
+    }
+
+    // also stands in for "attack", which is rewriten into "use"
+    use(what: string = '', target: string = ''): void {
+        if (what === '') {
+            this.sayGibberish();
+        } else if (!this.inventory().includes(what)) {
+            this.say(`You don't have ${Thing.aliasToName(what)}.`);
+        } else if (target !== '' && !this.isActiveObject(target)) {
+            this.say(`I don't see any ${Thing.aliasToName(target)} around here.`);
+        } else {
+            this.say('That doesn\'t make sense.');
+        }
+    }
+
+    displayInventory(): void {
+        this.say(this.inventory().length === 0 ? "You don't have anything." : this.thingsInLocation('i'));
+    }
+
+    quitGame(): void {
+        this.say('Farewell!');
+    }
+}

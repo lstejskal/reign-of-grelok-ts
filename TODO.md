@@ -1,11 +1,14 @@
 # TODO
 
+* inital loading state - player in game
+
 * locations - moving around
 
 * inventory - pick up and drop things
 
-* constraints
+* custom-action scripting DSL
 
-* custom actions
+* command history (in-memory) and autocompletion
 
-* command history (in-memory)
+* save and load game
+
