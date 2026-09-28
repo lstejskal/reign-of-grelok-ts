@@ -4,30 +4,38 @@ import { Location } from './Location.js';
 import { Message } from './Message.js';
 import { Thing } from './Thing.js';
 import { chopToLines, toSentence } from '../utils.js';
-import type { ConstraintsData, GameData } from '../gameData/types.js';
+import { parseCommand, isAmbiguous } from '../parser/CommandParser.js';
+import { CustomActionRunner } from '../parser/CustomActionRunner.js';
+import type { ConstraintsData, CommandsData, GameData } from '../gameData/types.js';
+
+export interface ProcessLineResult {
+    // true once the game should stop looping: `quit`/`exit`, or a custom
+    // action's `exit` instruction (the win condition) — see
+    // CustomActionRunner's PerformResult.gameOver.
+    gameOver: boolean;
+}
 
 /**
- * Player holds game state: current location, inventory, constraints...) 
+ * Player holds game state: current location, inventory, constraints...)
  * and manages it through command handlers.
- *
- * NOT ported yet, deliberately: `process_line`'s parser (tokenizing a raw
- * command line into a verb + params) and the custom-action scripting DSL
- * (§6 of the doc) — both are their own sizeable pieces the doc already
- * calls out as separate porting steps. So are save/load, autocompletion
- * shortcuts, and the extended/custom prompt switch, per this round's
- * scope. Until the parser exists, callers invoke these handlers directly
- * (e.g. `player.go('n')`, `player.pickUp('rusty_sword')`).
  */
 export class Player {
     game: Game;
     messages: Message;
     constraints: ConstraintsData;
+    commands: CommandsData;
 
     currentLocation: string;
     previousLocation: string | undefined;
     activeObjects: string[];
 
     private readonly output: (text: string) => void;
+    private readonly customActionRunner: CustomActionRunner;
+
+    // Explicit table in place of Ruby's `respond_to?` + `send` — see
+    // docs/ruby-implementation.md §5.2. Built once here (rather than
+    // inline in processLine) so it's only allocated per Player, not per line.
+    private readonly builtInHandlers: Record<string, (params: string[]) => void>;
 
     constructor(gameData: GameData, output: (text: string) => void = console.log) {
         this.output = output;
@@ -36,14 +44,77 @@ export class Player {
         // PS: upon new game and game load, start with fresh slate
         this.messages = new Message(structuredClone(gameData.messages));
         this.constraints = structuredClone(gameData.constraints);
+        this.commands = gameData.commands;
 
         this.currentLocation = 'plain';
         this.previousLocation = undefined;
         this.activeObjects = [];
+
+        this.customActionRunner = new CustomActionRunner(
+            this.game,
+            this.messages,
+            this.constraints,
+            (text) => this.say(text),
+        );
+
+        this.builtInHandlers = {
+            look_at: (params) => this.lookAt(params[0]),
+            pick_up: (params) => this.pickUp(params[0]),
+            drop: (params) => this.drop(params[0]),
+            go: (params) => this.go(params[0] ?? ''),
+            talk_to: (params) => this.talkTo(params[0]),
+            ask: (params) => this.ask(params[0]),
+            give: (params) => this.give(params[0], params[1]),
+            use: (params) => this.use(params[0], params[1]),
+            display_inventory: () => this.displayInventory(),
+            quit_game: () => this.quitGame(),
+        };
     }
 
     get location(): Location {
         return this.game.locations[this.currentLocation];
+    }
+
+    // --- command line processing ---------------------------------------
+
+    // Doc §5, `process_line`, steps 4-15: tokenize, resolve against custom
+    // actions / messages / built-in handlers, in that order (first hit
+    // wins). Steps 1-3 (empty line, `help`, `extended prompt on|off`) are
+    // out of scope this round, so an empty line is the only short-circuit.
+    processLine(line: string): ProcessLineResult {
+        const trimmedLine = line.trim();
+        if (trimmedLine === '') {
+            return { gameOver: false };
+        }
+
+        const parsed = parseCommand(trimmedLine, this.activeObjects, this.commands);
+
+        if (isAmbiguous(parsed)) {
+            this.say(parsed.ambiguity);
+            return { gameOver: false };
+        }
+
+        const { command, params, commandAlias } = parsed;
+
+        const customAction = this.customActionRunner.perform(command, params, commandAlias, this.currentLocation);
+        if (customAction.handled) {
+            return { gameOver: customAction.gameOver };
+        }
+
+        const message = this.messages.findByAlias(commandAlias);
+        if (message !== undefined) {
+            this.say(message);
+            return { gameOver: false };
+        }
+
+        const handler = this.builtInHandlers[command];
+        if (handler !== undefined) {
+            handler(params);
+            return { gameOver: command === 'quit_game' };
+        }
+
+        this.sayGibberish();
+        return { gameOver: false };
     }
 
     // --- output -------------------------------------------------------
@@ -184,7 +255,7 @@ export class Player {
     }
 
     // talkTo/ask/give/use are fallbacks only: real dialogue and puzzle
-    // logic live in messages.yml / custom_actions.yml  and get a first shot 
+    // logic live in messages.yml / custom_actions.yml  and get a first shot
     // at the command before these run
     talkTo(whom: string = ''): void {
         if (this.isActiveObject(whom)) {

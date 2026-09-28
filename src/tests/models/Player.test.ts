@@ -42,6 +42,12 @@ function buildGameData(): GameData {
                 location: 'plain',
                 pickable: false,
             },
+            shiny_sword: {
+                alias: 'shiny_sword',
+                description: 'a shiny sword',
+                location: 'plain',
+                pickable: true,
+            },
             grelok: {
                 alias: 'grelok',
                 description: 'Grelok the Gruesome spewing heresies',
@@ -49,17 +55,34 @@ function buildGameData(): GameData {
                 pickable: false,
             },
         },
-        commands: {},
+        commands: {
+            go_north: ['n', 'north'],
+            go_south: ['s', 'south'],
+            go_east: ['e', 'east'],
+            go_west: ['w', 'west'],
+            look_at: ['l', 'look', 'examine'],
+            display_inventory: ['i', 'inv', 'inventory'],
+            pick_up: ['p', 'pick', 't', 'take'],
+            drop: ['d', 'drop'],
+            give: ['g', 'give'],
+            use: ['u', 'use'],
+            attack: ['a', 'attack', 'slay'],
+            talk_to: ['tt', 'talk'],
+            ask: ['ask'],
+            quit_game: ['quit', 'exit'],
+        },
         constraints: {
             locations: { 'plain-s': 'The road to town is washed out.' },
             boolean: {},
         },
-        customActions: {},
+        customActions: { pick_up_pebble: ['remove pebble', 'say pebble_gone'] },
         messages: {
             gibberish1: 'Mighty Grognak is confused by this gibberish.',
             gibberish2: 'I do not understand what are you trying to do.',
             gibberish3: 'Sorry, I do not speak gibberish.',
             ask_grelok_about_anything: '"I don\'t have time for your silly questions, human!"',
+            talk_to_grelok: '"Silence, mortal!"',
+            pebble_gone: 'The pebble crumbles to dust.',
         },
     };
 }
@@ -100,7 +123,7 @@ describe('Player', () => {
         test('builds active objects from inventory + visible things here', () => {
             const { player } = buildPlayer();
             player.lookAround();
-            expect(player.activeObjects.sort()).toEqual(['pebble', 'rusty sword', 'standing stone'].sort());
+            expect(player.activeObjects.sort()).toEqual(['pebble', 'rusty sword', 'shiny sword', 'standing stone'].sort());
         });
     });
 
@@ -286,6 +309,69 @@ describe('Player', () => {
                 player.sayGibberish();
             }
             output.forEach((line) => expect(GIBBERISH_MESSAGES).toContain(line));
+        });
+    });
+    describe('processLine', () => {
+        test('an empty line is a no-op', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('   ');
+            expect(result).toEqual({ gameOver: false });
+            expect(output).toEqual([]);
+        });
+
+        test('dispatches to a built-in handler (via the parser) when nothing else claims the command', () => {
+            const { player } = buildPlayer();
+            const result = player.processLine('n');
+            expect(result).toEqual({ gameOver: false });
+            expect(player.currentLocation).toBe('mountain');
+        });
+
+        test('a message takes priority over the built-in handler for the same alias', () => {
+            const { player, output } = buildPlayer();
+            player.go('n'); // grelok is on the mountain
+            player.lookAround();
+
+            player.processLine('talk to grelok');
+
+            // the built-in talkTo() fallback would have said "You can't chat with that."
+            expect(output[output.length - 1]).toBe('"Silence, mortal!"');
+        });
+
+        test('a custom action takes priority over both messages and built-in handlers', () => {
+            const { player, output } = buildPlayer();
+            player.lookAround();
+
+            const result = player.processLine('take pebble');
+
+            expect(result).toEqual({ gameOver: false });
+            expect(output[output.length - 1]).toBe('The pebble crumbles to dust.');
+            // the custom action removed it, rather than the built-in pickUp() carrying it
+            expect(player.game.things.pebble.location).toBeUndefined();
+            expect(player.inventory()).not.toContain('pebble');
+        });
+
+        test('flags ambiguity instead of guessing which active object was meant', () => {
+            const { player, output } = buildPlayer();
+            player.lookAround(); // active objects: rusty sword, pebble, standing stone, shiny sword
+
+            const result = player.processLine('look at sword');
+
+            expect(result).toEqual({ gameOver: false });
+            expect(output[output.length - 1]).toBe('Which sword do you mean: rusty sword, shiny sword or something else?');
+        });
+
+        test('falls back to gibberish for an unrecognized command', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('xyzzy');
+            expect(result).toEqual({ gameOver: false });
+            expect(GIBBERISH_MESSAGES).toContain(output[output.length - 1]);
+        });
+
+        test('quit ends the game after saying goodbye', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('quit');
+            expect(result).toEqual({ gameOver: true });
+            expect(output[output.length - 1]).toBe('Farewell!');
         });
     });
 });
