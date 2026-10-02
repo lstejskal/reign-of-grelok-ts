@@ -4,6 +4,8 @@ This is a small adventure game written in Typescript. It is a rewrite of [Fallou
 
 ### How to run
 
+`npm install`
+
 `npm run play`
 
 ### Commands
@@ -20,10 +22,16 @@ This is a small adventure game written in Typescript. It is a rewrite of [Fallou
 
 ### System commands
 
+* h(elp)
 * extended prompt on/off
 * save [name]
 * load [name]
-* quit
+* quit/exit
+
+#### Notes
+
+* l(ook) - look around: show location, directions and objects
+* "use sword on zombie" has the same effect as "attack zombie with sword"
 
 ### Authors
 

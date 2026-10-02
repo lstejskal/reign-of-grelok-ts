@@ -414,4 +414,14 @@ describe('Player', () => {
             expect(output[output.length - 1]).toBe('extended prompt: invalid parameter');
         });
     });
+    describe('processLine: "h" / "help"', () => {
+        test('"help" prints the help screen', () => {
+            const { player, output } = buildPlayer();
+            const result = player.processLine('help');
+            expect(result).toEqual({ gameOver: false });
+            expect(output).toContain('Commands:');
+            expect(output).toContain('System commands:');
+            expect(output).toContain('Notes:');
+        });
+    });
 });

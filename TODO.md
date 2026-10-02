@@ -1,8 +1,6 @@
 # TODO 1.0
 
-* help
-
-* command history (in-memory)
+* autocompletion
 
 * save/load game
 

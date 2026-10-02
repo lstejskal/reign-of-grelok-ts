@@ -5,6 +5,7 @@ import { Message } from './Message.js';
 import { Thing } from './Thing.js';
 import { chopToLines, toSentence } from '../utils.js';
 import { parseCommand, isAmbiguous } from '../parser/CommandParser.js';
+import { HELP_LINES } from '../helpText.js';
 import { CustomActionRunner } from '../parser/CustomActionRunner.js';
 import type { ConstraintsData, CommandsData, GameData } from '../gameData/types.js';
 
@@ -79,7 +80,7 @@ export class Player {
         return this.game.locations[this.currentLocation];
     }
 
-    // Doc §4: "\n[plain: n, s, e, w] > " when extended, else "\n> ".
+    // "\n[plain: n, s, e, w] > " when extended, else "\n> ".
     // Recomputed on every call so it always reflects the current location.
     get promptText(): string {
         if (!this.extendedPrompt) {
@@ -92,13 +93,19 @@ export class Player {
 
     // --- command line processing ---------------------------------------
 
-    // Doc §5, `process_line`, steps 4-15: tokenize, resolve against custom
-    // actions / messages / built-in handlers, in that order (first hit
-    // wins). Steps 1-3 (empty line, `help`, `extended prompt on|off`) are
-    // out of scope this round, so an empty line is the only short-circuit.
+    // `process_line`: empty line / `h`|`help` / `extended prompt on|off` 
+    // short-circuit (steps 1-3). otherwise tokenize and resolve
+    // against custom actions / messages / built-in handlers, 
+    // in that order (first hit wins, steps 4-15).
     processLine(line: string): ProcessLineResult {
         const trimmedLine = line.trim();
         if (trimmedLine === '') {
+            return { gameOver: false };
+        }
+
+        if (trimmedLine === 'h' || trimmedLine === 'help') {
+            this.output('');
+            HELP_LINES.forEach((helpLine) => this.output(helpLine));
             return { gameOver: false };
         }
 
