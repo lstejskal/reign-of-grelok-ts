@@ -25,7 +25,8 @@ export function isAmbiguous<T extends object>(result: T | ParseAmbiguity): resul
     return 'ambiguity' in result;
 }
 
-const TWO_PARAM_COMMANDS = new Set(['give', 'use', 'attack', 'ask']);
+// Exported for reuse by Autocompleter.ts
+export const TWO_PARAM_COMMANDS = new Set(['give', 'use', 'attack', 'ask']);
 
 // Checked in this priority order, not by position in the line — the first
 // of these found anywhere among the tokens is what splits the two params.
@@ -35,7 +36,8 @@ const CONJUNCTION_PRIORITY = ['to', 'on', 'with', 'about'];
 const ALIAS_CONJUNCTIONS: Record<string, string> = { use: 'on', give: 'to', ask: 'about' };
 
 // One leading preposition gets dropped after the verb: "look (at) sword", "talk (to) wizard"...
-const DROPPABLE_PREPOSITIONS = new Set(['at', 'up', 'to', 'with', 'on']);
+// Exported for reuse by Autocompleter.ts
+export const DROPPABLE_PREPOSITIONS = new Set(['at', 'up', 'to', 'with', 'on']);
 
 export function parseCommand(line: string, activeObjects: string[], commands: CommandsData): ParseResult {
     const tokens = line.trim().split(/\s+/);
@@ -82,7 +84,8 @@ export function parseCommand(line: string, activeObjects: string[], commands: Co
 // First entry in `commands` whose alias list contains `token` wins; a verb
 // with no matching alias is used verbatim, which is how data-only verbs
 // like `drink`, `push`, `move` reach custom_actions.yml/messages.yml.
-function resolveVerb(token: string, commands: CommandsData): string {
+// Exported for reuse by Autocompleter.ts (see TWO_PARAM_COMMANDS above).
+export function resolveVerb(token: string, commands: CommandsData): string {
     for (const [canonical, aliases] of Object.entries(commands)) {
         if (aliases.includes(token)) {
             return canonical;
