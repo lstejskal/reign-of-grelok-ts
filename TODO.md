@@ -1,7 +1,5 @@
 # TODO 1.0
 
-* autocompletion
-
 * save/load game
 
 # FIXME 1.1
