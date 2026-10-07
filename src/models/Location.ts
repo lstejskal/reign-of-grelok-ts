@@ -1,6 +1,7 @@
 
 import { Thing } from './Thing.js';
 import { toSentence } from '../utils.js';
+import type { LocationData } from '../gameData/types.js';
 
 /**
  * Location is a Thing (sic!) with a set of `directions` to other locations. 
@@ -44,5 +45,18 @@ export class Location extends Thing {
         );
 
         return toSentence(directionNames, { prepend: 'You can go ', onEmpty: 'nowhere' });
+    }
+
+    // Not an override of Thing.toData(): LocationData has no `pickable`, so
+    // a same-signature override would break substitutability (TS2416).
+    // Uses the `name` getter (not Thing's alias-derived one) and adds
+    // `directions` - see Thing.toData()'s doc comment.
+    toLocationData(): LocationData {
+        return {
+            alias: this.alias,
+            name: this.name,
+            description: this.description,
+            directions: this.directions,
+        };
     }
 }

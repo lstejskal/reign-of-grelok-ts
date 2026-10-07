@@ -1,4 +1,6 @@
 
+import path from 'node:path';
+
 import { Game } from './Game.js';
 import { Location } from './Location.js';
 import { Message } from './Message.js';
@@ -7,7 +9,11 @@ import { chopToLines, toSentence } from '../utils.js';
 import { parseCommand, isAmbiguous } from '../parser/CommandParser.js';
 import { HELP_LINES } from '../helpText.js';
 import { CustomActionRunner } from '../parser/CustomActionRunner.js';
+import { FileSaveStore } from '../persistence/SaveStore.js';
+import type { SaveStore } from '../persistence/SaveStore.js';
 import type { ConstraintsData, CommandsData, GameData } from '../gameData/types.js';
+
+const DEFAULT_SAVED_GAMES_DIR = path.join(process.cwd(), 'saved-games');
 
 export interface ProcessLineResult {
     // true once the game should stop looping: `quit`/`exit`, or a custom
@@ -35,14 +41,20 @@ export class Player {
 
     private readonly output: (text: string) => void;
     private readonly customActionRunner: CustomActionRunner;
+    private readonly saveStore: SaveStore;
 
     // Explicit table in place of Ruby's `respond_to?` + `send` — see
     // docs/ruby-implementation.md §5.2. Built once here (rather than
     // inline in processLine) so it's only allocated per Player, not per line.
     private readonly builtInHandlers: Record<string, (params: string[]) => void>;
 
-    constructor(gameData: GameData, output: (text: string) => void = console.log) {
+    constructor(
+        gameData: GameData,
+        output: (text: string) => void = console.log,
+        saveStore: SaveStore = new FileSaveStore(DEFAULT_SAVED_GAMES_DIR),
+    ) {
         this.output = output;
+        this.saveStore = saveStore;
         this.game = new Game(gameData);
 
         // PS: upon new game and game load, start with fresh slate
@@ -73,6 +85,8 @@ export class Player {
             use: (params) => this.use(params[0], params[1]),
             display_inventory: () => this.displayInventory(),
             quit_game: () => this.quitGame(),
+            save_game: (params) => this.saveGame(params[0]),
+            load_game: (params) => this.loadGame(params[0]),
         };
     }
 
@@ -345,5 +359,74 @@ export class Player {
 
     quitGame(): void {
         this.say('Farewell!');
+    }
+
+    // --- save / load ----------------------------------------------------
+    // See docs/ruby-implementation.md §7 for the Ruby original (a
+    // command-log replay) this replaces with real state snapshots -
+    // src/persistence/SaveStore.ts has the on-disk format.
+
+    saveGame(rawName?: string): void {
+        const name = this.resolveSaveName(rawName);
+        this.saveStore.save(name, { gameData: this.toGameData(), currentLocation: this.currentLocation });
+        this.say(`Game was saved as ${name}.`);
+    }
+
+    loadGame(rawName?: string): void {
+        if (rawName === undefined || rawName === '') {
+            const names = this.saveStore.list();
+            this.say(
+                names.length === 0 ? 'No saved games are available.' : toSentence(names, { prepend: 'Saved games: ' }),
+            );
+            return;
+        }
+
+        const snapshot = this.saveStore.load(rawName);
+        if (snapshot === undefined) {
+            this.say("This saved game doesn't exist.");
+            return;
+        }
+
+        // Mutate the existing game/messages/constraints *in place* rather
+        // than replacing Player's references to them - customActionRunner
+        // was built once, in the constructor, around these same objects
+        // (see Game#reload()/Message#reload()'s doc comments).
+        this.game.reload(snapshot.gameData);
+        this.messages.reload(snapshot.gameData.messages);
+        Object.assign(this.constraints, structuredClone(snapshot.gameData.constraints));
+        this.commands = snapshot.gameData.commands;
+        this.currentLocation = snapshot.currentLocation;
+        this.previousLocation = undefined; // forces lookAround() to redescribe the room
+        this.say(`Loaded save game: ${rawName}`);
+    }
+
+    // The inverse of the constructor's `new Game(gameData)` / `new
+    // Message(...)` - reassembles a plain GameData from the live, possibly
+    // mutated-at-runtime state, for the SaveStore to write out.
+    toGameData(): GameData {
+        const { locations, things, customActions } = this.game.toData();
+        return {
+            locations,
+            things,
+            customActions,
+            commands: this.commands,
+            constraints: structuredClone(this.constraints),
+            messages: this.messages.toData(),
+        };
+    }
+
+    // No name -> saveStore.nextFreeName(); a purely-numeric name (e.g. "3")
+    // -> "save003", matching docs/ruby-implementation.md §7's rule; anything
+    // else is used as-is.
+    private resolveSaveName(rawName?: string): string {
+        if (rawName === undefined || rawName === '') {
+            return this.saveStore.nextFreeName();
+        }
+
+        if (/^\d+$/.test(rawName)) {
+            return `save${rawName.padStart(3, '0')}`;
+        }
+
+        return rawName;
     }
 }

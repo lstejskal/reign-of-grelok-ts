@@ -1,5 +1,6 @@
 import { Player } from '../../models/Player';
 import type { GameData } from '../../gameData/types';
+import type { SaveSnapshot, SaveStore } from '../../persistence/SaveStore';
 
 function buildGameData(): GameData {
     return {
@@ -69,6 +70,8 @@ function buildGameData(): GameData {
             attack: ['a', 'attack', 'slay'],
             talk_to: ['tt', 'talk'],
             ask: ['ask'],
+            save_game: ['save'],
+            load_game: ['load', 'restore'],
             quit_game: ['quit', 'exit'],
         },
         constraints: {
@@ -93,10 +96,35 @@ const GIBBERISH_MESSAGES = [
     'Sorry, I do not speak gibberish.',
 ];
 
-function buildPlayer() {
+function buildPlayer(saveStore?: SaveStore) {
     const output: string[] = [];
-    const player = new Player(buildGameData(), (text) => output.push(text));
+    const player = new Player(buildGameData(), (text) => output.push(text), saveStore);
     return { player, output };
+}
+
+// In-memory stand-in for FileSaveStore (see src/persistence/SaveStore.ts),
+// so save/load tests never touch the real filesystem.
+function buildFakeSaveStore(): SaveStore {
+    const saves = new Map<string, SaveSnapshot>();
+
+    return {
+        save(name, snapshot) {
+            saves.set(name, snapshot);
+        },
+        load(name) {
+            return saves.get(name);
+        },
+        list() {
+            return [...saves.keys()];
+        },
+        nextFreeName() {
+            let n = 1;
+            while (saves.has(`save${String(n).padStart(3, '0')}`)) {
+                n += 1;
+            }
+            return `save${String(n).padStart(3, '0')}`;
+        },
+    };
 }
 
 describe('Player', () => {
@@ -422,6 +450,125 @@ describe('Player', () => {
             expect(output).toContain('Commands:');
             expect(output).toContain('System commands:');
             expect(output).toContain('Notes:');
+        });
+    });
+
+    describe('saveGame', () => {
+        test('with no name, picks the store\'s next free name', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.saveGame();
+
+            expect(saveStore.list()).toEqual(['save001']);
+            expect(output[output.length - 1]).toBe('Game was saved as save001.');
+        });
+
+        test('a purely numeric name is expanded to saveNNN', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.saveGame('7');
+
+            expect(saveStore.list()).toEqual(['save007']);
+            expect(output[output.length - 1]).toBe('Game was saved as save007.');
+        });
+
+        test('a non-numeric name is used as-is', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.saveGame('before-grelok');
+
+            expect(saveStore.list()).toEqual(['before-grelok']);
+            expect(output[output.length - 1]).toBe('Game was saved as before-grelok.');
+        });
+    });
+
+    describe('loadGame', () => {
+        test('with no name and nothing saved, says so', () => {
+            const { player, output } = buildPlayer(buildFakeSaveStore());
+            player.loadGame();
+            expect(output[output.length - 1]).toBe('No saved games are available.');
+        });
+
+        test('with no name, lists the available saves', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.saveGame('save001');
+            player.saveGame('save002');
+            player.loadGame();
+
+            expect(output[output.length - 1]).toBe('Saved games: save001 and save002');
+        });
+
+        test('a nonexistent name says so', () => {
+            const { player, output } = buildPlayer(buildFakeSaveStore());
+            player.loadGame('nope');
+            expect(output[output.length - 1]).toBe("This saved game doesn't exist.");
+        });
+
+        test('restores location and inventory from the save point, discarding later changes', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.pickUp('pebble');
+            player.go('n');
+            expect(player.currentLocation).toBe('mountain');
+
+            player.saveGame('checkpoint');
+
+            player.drop('pebble');
+            player.go('s');
+            expect(player.currentLocation).toBe('plain');
+            expect(player.inventory()).not.toContain('pebble');
+
+            player.loadGame('checkpoint');
+
+            expect(player.currentLocation).toBe('mountain');
+            expect(player.inventory()).toContain('pebble');
+            expect(output[output.length - 1]).toBe('Loaded save game: checkpoint');
+        });
+
+        test('forces the room to be redescribed on the next lookAround', () => {
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.lookAround();
+            player.saveGame('checkpoint');
+
+            output.length = 0;
+            player.lookAround(); // same location as the save point - stays quiet
+            expect(output).toEqual([]);
+
+            player.loadGame('checkpoint');
+            output.length = 0;
+            player.lookAround();
+
+            expect(output.some((line) => line.includes('Plain'))).toBe(true);
+        });
+
+        test('custom actions see the post-load state, not the objects from before the load', () => {
+            // Regression test: CustomActionRunner is built once (in Player's
+            // constructor) around `this.game`/`this.messages`/
+            // `this.constraints`. loadGame() must mutate those same objects
+            // in place (Game#reload()/Message#reload()) rather than
+            // replacing Player's references to brand new ones, or
+            // CustomActionRunner would keep acting on stale pre-load state.
+            const saveStore = buildFakeSaveStore();
+            const { player, output } = buildPlayer(saveStore);
+
+            player.lookAround();
+            player.saveGame('checkpoint');
+            player.loadGame('checkpoint');
+            output.length = 0;
+
+            const result = player.processLine('take pebble');
+
+            expect(result).toEqual({ gameOver: false });
+            expect(output[output.length - 1]).toBe('The pebble crumbles to dust.');
+            expect(player.game.things.pebble.location).toBeUndefined();
         });
     });
 });

@@ -1,5 +1,6 @@
 console_log.txt
 saved_games
+saved-games
 dist
 node_modules
 coverage
