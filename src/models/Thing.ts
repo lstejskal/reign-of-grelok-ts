@@ -1,4 +1,6 @@
 
+import type { ThingData } from '../gameData/types.js';
+
 /**
  * Base class for game objects: items, locations, NPCs, obstacles...
  */
@@ -35,5 +37,18 @@ export class Thing {
 
     static aliasToName(thingAlias: string): string {
         return thingAlias.replace(/_/g, ' ');
+    }
+
+    // For save/load (src/persistence/SaveStore.ts): the inverse of the
+    // constructor, so a mutated-at-runtime Thing round-trips back to the
+    // plain data shape that `things.yml` is made of.
+    toData(): ThingData {
+        return {
+            alias: this.alias,
+            description: this.description,
+            location: this.location,
+            visible: this.visible,
+            pickable: this.pickable,
+        };
     }
 }

@@ -1,6 +1,3 @@
-# TODO 1.0
-
-* save/load game
 
 # FIXME 1.1
 

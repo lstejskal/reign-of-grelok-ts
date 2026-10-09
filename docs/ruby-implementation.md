@@ -259,14 +259,14 @@ Main quest (`walkthrough.txt`): north → look at rubble → take gemstone → s
 
 ## 9. Porting checklist (TS)
 
-- [ ] Load `game-data/*.yml` (e.g. `yaml` package, or convert to JSON/TS at build time); drop `game_data.rb`.
-- [ ] Types: `Thing`, `Location`, `Constraints`, `CustomActions = Record<string,string[]>`, `Messages = Record<string,string>`; `ThingLocation = LocationId | 'i' | null`.
-- [ ] A `GameState` object created fresh (deep clone of data) on new game/load — fixes §3.3.
-- [ ] Parser as a pure function `parse(line, activeObjects, commands) → { command, params: string[], commandAlias } | { ambiguity: string }` — easy to unit-test step by step against §5.
-- [ ] Dispatcher order: custom action → message → built-in handler → gibberish.
-- [ ] DSL interpreter for §6.2 with a return value `continue | stop`, plus a `gameOver` signal instead of `exit`.
-- [ ] Output through an injectable sink (`say(text)`), wrapped with `chopToLines`; load mode = null sink.
-- [ ] REPL via `node:readline` (supports tab completion via `completer`, history); ignore SIGINT like the original if desired.
+- [x] Load `game-data/*.yml` (e.g. `yaml` package, or convert to JSON/TS at build time); drop `game_data.rb`.
+- [x] Types: `Thing`, `Location`, `Constraints`, `CustomActions = Record<string,string[]>`, `Messages = Record<string,string>`; `ThingLocation = LocationId | 'i' | null`.
+- [x] A `GameState` object created fresh (deep clone of data) on new game/load — fixes §3.3.
+- [x] Parser as a pure function `parse(line, activeObjects, commands) → { command, params: string[], commandAlias } | { ambiguity: string }` — easy to unit-test step by step against §5.
+- [x] Dispatcher order: custom action → message → built-in handler → gibberish.
+- [x] DSL interpreter for §6.2 with a return value `continue | stop`, plus a `gameOver` signal instead of `exit`.
+- [x] Output through an injectable sink (`say(text)`), wrapped with `chopToLines`; load mode = null sink.
+- [x] REPL via `node:readline` (supports tab completion via `completer`, history); ignore SIGINT like the original if desired.
 - [ ] Decide on each **[QUIRK]**: `e` alias clash, substring two-param check, messages without presence checks, missing victory text, string booleans, `drink` without carry check.
 - [ ] End-to-end test: feed `walkthrough.txt` and assert the victory message; unit tests for parser examples:
   - `look at rubble` → `look_at_rubble`

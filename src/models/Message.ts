@@ -6,7 +6,7 @@ import type { MessagesData } from '../gameData/types.js';
  * Enables mutation, used for NPC dialogue and quest progressions.
  */
 export class Message {
-    private readonly messages: MessagesData;
+    private messages: MessagesData;
 
     // PS: this resets the state after loading game
     // otherwise player might see advanced NPC dialogue etc.
@@ -24,5 +24,13 @@ export class Message {
     // check 'set message' in custom_action.yml
     replace(oldAlias: string, newAlias: string): void {
         this.messages[oldAlias] = this.messages[newAlias];
+    }
+
+    toData(): MessagesData {
+        return { ...this.messages };
+    }
+
+    reload(data: MessagesData): void {
+        this.messages = { ...data };
     }
 }
