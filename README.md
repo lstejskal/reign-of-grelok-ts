@@ -1,5 +1,7 @@
 # Reign of Grelok
 
+![Reign of Grelok cover art](reign-of-grelok.jpg)
+
 This is a small adventure game written in Typescript. It is a rewrite of [Fallout 3 Easter Egg](http://fallout.wikia.com/wiki/Reign_of_Grelok). You play as Grognak, a mighty barbarian, and your goal is to put an end to the terrible reign of Grelok, an evil wizard.
 
 ### How to run
